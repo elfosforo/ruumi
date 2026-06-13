@@ -1,12 +1,12 @@
 import React, { useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, ViewStyle, TextStyle, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, ViewStyle, TextStyle, View, StyleProp } from 'react-native';
 
 interface BrutalButtonProps {
   title: string;
   onPress: () => void;
   color?: string;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }
 
 export const BrutalButton: React.FC<BrutalButtonProps> = ({ 
@@ -61,7 +61,7 @@ export const BrutalButton: React.FC<BrutalButtonProps> = ({
         styles.front, 
         { backgroundColor: color, transform: [{ translateX }, { translateY }] }
       ]}>
-        <Text style={[styles.text, textStyle]}>{title.toUpperCase()}</Text>
+        <Text style={[styles.text, textStyle as any]}>{title.toUpperCase()}</Text>
       </Animated.View>
     </Pressable>
   );

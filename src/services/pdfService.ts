@@ -35,75 +35,174 @@ export const generateReport = async (expenses: Expense[], roomies: any[], monthL
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
-          
-          body { font-family: 'Space Mono', monospace; background-color: #000; color: #00E5FF; padding: 30px; line-height: 1.4; }
-          .border-frame { border: 6px solid #00E5FF; padding: 20px; min-height: 96vh; border-style: double; }
-          .header { border-bottom: 2px dashed #FF007A; padding-bottom: 20px; margin-bottom: 30px; }
-          .header h1 { margin: 0; font-size: 32px; font-weight: 700; color: #FFF; }
-          .system-id { font-size: 9px; color: #FF007A; letter-spacing: 2px; }
-          .report-meta { display: flex; justify-content: space-between; font-size: 10px; margin-top: 10px; }
-
-          .settlement-zone { background-color: rgba(255, 0, 122, 0.1); border: 2px solid #FF007A; padding: 20px; margin-bottom: 30px; }
-          .section-label { background-color: #FF007A; color: #000; padding: 2px 10px; display: inline-block; font-weight: 700; font-size: 12px; margin-bottom: 15px; }
-
-          .instruction-row { border-left: 5px solid #00E5FF; padding: 10px 15px; margin-bottom: 10px; background-color: rgba(0, 229, 255, 0.05); display: flex; justify-content: space-between; align-items: center; }
-          .instr-text { font-size: 14px; font-weight: 700; color: #FFF; }
-          .instr-amount { font-size: 20px; font-weight: 700; color: #00E5FF; }
-
-          .audit-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border: 1px solid rgba(0, 229, 255, 0.3); }
-          .audit-table th { background-color: rgba(0, 229, 255, 0.1); padding: 10px; font-size: 9px; color: #FF007A; text-align: left; }
-          .audit-table td { padding: 10px; font-size: 11px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); }
-
-          .historical-box { border: 2px solid #00E5FF; padding: 15px; margin-top: 20px; }
-
-          .footer { margin-top: 40px; border-top: 2px dashed #00E5FF; padding-top: 15px; font-size: 9px; text-align: center; }
-          .barcode { margin-top: 20px; letter-spacing: 5px; opacity: 0.4; font-size: 8px; }
+          body {
+            font-family: 'Segoe UI', Calibri, Arial, sans-serif;
+            background-color: #FFFFFF;
+            color: #333333;
+            padding: 20px;
+            line-height: 1.5;
+          }
+          .excel-container {
+            border: 1px solid #D9D9D9;
+            padding: 25px;
+            background-color: #FFFFFF;
+          }
+          .excel-header {
+            border-bottom: 2px solid #217346;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .excel-title-block h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            color: #217346;
+          }
+          .excel-title-block p {
+            margin: 4px 0 0 0;
+            font-size: 11px;
+            color: #666666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          .meta-table {
+            border-collapse: collapse;
+            font-size: 11px;
+          }
+          .meta-table td {
+            padding: 4px 8px;
+            border: 1px solid #D9D9D9;
+          }
+          .meta-label {
+            background-color: #F2F2F2;
+            font-weight: 700;
+            color: #555555;
+          }
+          .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #217346;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            border-left: 4px solid #217346;
+            padding-left: 8px;
+          }
+          .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 12px;
+          }
+          .excel-table th {
+            background-color: #217346;
+            color: #FFFFFF;
+            font-weight: 700;
+            padding: 8px 10px;
+            border: 1px solid #1a5c38;
+            text-align: left;
+          }
+          .excel-table td {
+            padding: 8px 10px;
+            border: 1px solid #D9D9D9;
+          }
+          .excel-table tr:nth-child(even) td {
+            background-color: #F9FBF9;
+          }
+          .num-col {
+            text-align: right;
+            font-family: monospace;
+            font-size: 13px;
+          }
+          .balance-positive {
+            color: #1b5e20;
+            background-color: #e8f5e9 !important;
+            font-weight: 700;
+          }
+          .balance-negative {
+            color: #b71c1c;
+            background-color: #ffebee !important;
+            font-weight: 700;
+          }
+          .settlement-card {
+            border: 1px dashed #217346;
+            background-color: #F4F9F5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+          }
+          .settlement-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #E2EFE6;
+            font-size: 12px;
+          }
+          .settlement-row:last-child {
+            border-bottom: none;
+          }
+          .settlement-text {
+            color: #333333;
+          }
+          .settlement-amount {
+            font-weight: 700;
+            color: #217346;
+            font-family: monospace;
+            font-size: 14px;
+          }
+          .footer {
+            margin-top: 30px;
+            border-top: 1px solid #D9D9D9;
+            padding-top: 10px;
+            font-size: 10px;
+            color: #777777;
+            text-align: center;
+          }
         </style>
       </head>
       <body>
-        <div class="border-frame">
-          <div class="header">
-            <div class="system-id">OFFICIAL_PERIOD_SETTLEMENT // RUUMI_OS</div>
-            <h1>BOLETA_DE_LIQUIDACIÓN</h1>
-            <div class="report-meta">
-              <div>PERIOD: ${monthLabel}</div>
-              <div>FOLIO: #RU-${Math.floor(Math.random()*10000)}</div>
-              <div>DATE: ${new Date().toLocaleDateString('es-CL')}</div>
+        <div class="excel-container">
+          <div class="excel-header">
+            <div class="excel-title-block">
+              <h1>RUUMI - REPORTE DE GASTOS</h1>
+              <p>HOJA DE LIQUIDACIÓN Y AUDITORÍA DE ROOMIES</p>
             </div>
+            <table class="meta-table">
+              <tr>
+                <td class="meta-label">PERÍODO:</td>
+                <td>${monthLabel}</td>
+              </tr>
+              <tr>
+                <td class="meta-label">FECHA INFORME:</td>
+                <td>${new Date().toLocaleDateString('es-CL')}</td>
+              </tr>
+              <tr>
+                <td class="meta-label">FOLIO:</td>
+                <td>#RU-${Math.floor(Math.random()*10000)}</td>
+              </tr>
+            </table>
           </div>
 
-          <div class="settlement-zone">
-            <div class="section-label">INSTRUCCIONES_DE_CIERRE_PERIODO</div>
-            ${settlements.length > 0 ? settlements.map(s => `
-              <div class="instruction-row">
-                <div class="instr-text">
-                  <span style="color: #FF007A;">${s.from.toUpperCase()}</span> 
-                  <span style="opacity: 0.6">TRANSFIERE A</span> 
-                  <span style="color: #FFF;">${s.to.toUpperCase()}</span>
-                </div>
-                <div class="instr-amount">$${s.amount.toLocaleString('es-CL')}</div>
-              </div>
-            `).join('') : '<div style="color: #FFF; font-weight: 700;">EL PERIODO SE ENCUENTRA BALANCEADO.</div>'}
-          </div>
-
-          <div class="section-label">AUDITORÍA_DE_PARTICIPACIÓN_DEL_MES</div>
-          <table class="audit-table">
+          <div class="section-title">AUDITORÍA DE PARTICIPACIÓN DEL MES</div>
+          <table class="excel-table">
             <thead>
               <tr>
                 <th>ROOMIE</th>
-                <th>APORTADO (EFECTIVO)</th>
-                <th>RESPONSABILIDAD (GURÚ)</th>
-                <th>BALANCE_MES</th>
+                <th style="text-align: right;">APORTADO (EFECTIVO)</th>
+                <th style="text-align: right;">RESPONSABILIDAD (DEBE)</th>
+                <th style="text-align: right;">BALANCE MES</th>
               </tr>
             </thead>
             <tbody>
               ${roomies.map(r => `
                 <tr>
-                  <td style="color: #FFF; font-weight: 700;">${r.name.toUpperCase()}</td>
-                  <td>$${r.totalContributed.toLocaleString('es-CL')}</td>
-                  <td>$${r.totalResponsibilities.toLocaleString('es-CL')}</td>
-                  <td style="color: ${r.balance < 0 ? '#FF007A' : '#00FF41'}">
+                  <td style="font-weight: 700; color: #217346;">${r.name.toUpperCase()}</td>
+                  <td class="num-col">$${r.totalContributed.toLocaleString('es-CL')}</td>
+                  <td class="num-col">$${r.totalResponsibilities.toLocaleString('es-CL')}</td>
+                  <td class="num-col ${r.balance < 0 ? 'balance-negative' : 'balance-positive'}">
                     ${r.balance < 0 ? '-' : '+'}$${Math.abs(r.balance).toLocaleString('es-CL')}
                   </td>
                 </tr>
@@ -111,27 +210,44 @@ export const generateReport = async (expenses: Expense[], roomies: any[], monthL
             </tbody>
           </table>
 
-          <div class="historical-box">
-            <div class="section-label" style="margin-top: -25px;">SALDOS_HISTÓRICOS_ACUMULADOS</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-              ${roomies.map(r => `
-                <div style="font-size: 10px; display: flex; justify-content: space-between;">
-                  <span style="opacity: 0.6">${r.name.toUpperCase()}</span>
-                  <span style="color: ${r.historicalBalance < 0 ? '#FF007A' : '#FFF'}; font-weight: 700;">
-                    ${r.historicalBalance < 0 ? '-' : '+'}$${Math.abs(r.historicalBalance).toLocaleString('es-CL')}
-                  </span>
-                </div>
-              `).join('')}
-            </div>
-            <div style="font-size: 8px; opacity: 0.5; margin-top: 10px; font-style: italic;">
-              * Los saldos históricos incluyen deudas de meses anteriores que no han sido saldadas en el sistema.
-            </div>
+          <div class="section-title">INSTRUCCIONES DE CIERRE (TRANSFERENCIAS RECOMENDADAS)</div>
+          <div class="settlement-card">
+            ${settlements.length > 0 ? settlements.map(s => `
+              <div class="settlement-row">
+                <span class="settlement-text">
+                  <strong>${s.from.toUpperCase()}</strong> debe transferir a <strong>${s.to.toUpperCase()}</strong>
+                </span>
+                <span class="settlement-amount">$${s.amount.toLocaleString('es-CL')}</span>
+              </div>
+            `).join('') : '<div style="color: #217346; font-weight: 700; font-size: 12px;">El período se encuentra perfectamente balanceado. No se requieren transferencias.</div>'}
           </div>
 
+          <div class="section-title">SALDOS HISTÓRICOS ACUMULADOS</div>
+          <table class="excel-table" style="max-width: 450px;">
+            <thead>
+              <tr>
+                <th>ROOMIE</th>
+                <th style="text-align: right; width: 150px;">SALDO HISTÓRICO</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${roomies.map(r => `
+                <tr>
+                  <td style="font-weight: 700;">${r.name.toUpperCase()}</td>
+                  <td class="num-col ${r.historicalBalance < 0 ? 'balance-negative' : 'balance-positive'}">
+                    ${r.historicalBalance < 0 ? '-' : '+'}$${Math.abs(r.historicalBalance).toLocaleString('es-CL')}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <p style="font-size: 10px; color: #777777; font-style: italic; margin-top: -10px; margin-bottom: 20px;">
+            * Los saldos históricos incluyen deudas pendientes de meses anteriores que arrastra cada roomie.
+          </p>
+
           <div class="footer">
-            <div>ESTE DOCUMENTO ES UN REGISTRO OFICIAL DE LIQUIDACIÓN INTERNA.</div>
-            <div>VERIFICADO POR RUUMI_ACCOUNTS_ENGINE // SIN VALOR TRIBUTARIO</div>
-            <div class="barcode">|| ||| | |||| | || | ||| || ||| | |||| | || | ||| || ||| | |||| | || | |||</div>
+            <div>REPORTE GENERADO AUTOMÁTICAMENTE POR EL MOTOR DE CUENTAS DE RUUMI v1.0.1</div>
+            <div style="font-weight: bold; margin-top: 4px; color: #217346;">DOCUMENTO DE CONTROL INTERNO - SIN VALIDEZ TRIBUTARIA</div>
           </div>
         </div>
       </body>

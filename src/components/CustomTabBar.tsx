@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../styles/ThemeContext';
+
+const logo6 = require('../../assets/Logo/1x/Recurso 6.png');
 
 export const CustomTabBar = ({ state, descriptors, navigation }: any) => {
   const { colors, theme } = useTheme();
@@ -49,11 +51,19 @@ export const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                 isFocused && { backgroundColor: activeBg }
               ]}
             >
-              <Ionicons 
-                name={getIcon(route.name) as any} 
-                size={22} 
-                color={isFocused ? activeIconColor : colors.textSecondary} 
-              />
+              {route.name === 'HOME' ? (
+                <Image 
+                  source={logo6} 
+                  style={{ width: 22, height: 22, tintColor: isFocused ? activeIconColor : colors.textSecondary }} 
+                  resizeMode="contain"
+                />
+              ) : (
+                <Ionicons 
+                  name={getIcon(route.name) as any} 
+                  size={22} 
+                  color={isFocused ? activeIconColor : colors.textSecondary} 
+                />
+              )}
               <Text style={[
                 styles.tabLabel, 
                 { color: isFocused ? activeIconColor : colors.textSecondary }

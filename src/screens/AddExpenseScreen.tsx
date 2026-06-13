@@ -21,6 +21,12 @@ export const AddExpenseScreen = ({ navigation, route }: any) => {
   const [paidAmounts, setPaidAmounts] = useState<{ [id: string]: string }>({});
   const [selectedCategory, setSelectedCategory] = useState(editExpense?.category || 'other');
   const [selectedColor, setSelectedColor] = useState(editExpense?.color || '#9C27B0');
+  
+  // Date states
+  const [hasDateConfig, setHasDateConfig] = useState(!!editExpense?.dueDate || (!!editExpense?.date && editExpense.date !== new Date().toLocaleDateString('es-CL')));
+  const [dueDate, setDueDate] = useState(editExpense?.dueDate || '');
+  const [createdAt, setCreatedAt] = useState(editExpense?.createdAt || new Date().toLocaleDateString('es-CL'));
+  const [expenseDate, setExpenseDate] = useState(editExpense?.date || new Date().toLocaleDateString('es-CL'));
 
   const BRUTAL_COLORS = ['#FFD600', '#00E5FF', '#FF007A', '#A0FF00', '#FF8000', '#9C27B0', '#FFFFFF'];
   
@@ -33,6 +39,10 @@ export const AddExpenseScreen = ({ navigation, route }: any) => {
       setIsPaidToProvider(editExpense.isPaidToProvider);
       setSelectedCategory(editExpense.category);
       setSelectedColor(editExpense.color);
+      setHasDateConfig(!!editExpense.dueDate || (!!editExpense.date && editExpense.date !== new Date().toLocaleDateString('es-CL')));
+      setDueDate(editExpense.dueDate || '');
+      setCreatedAt(editExpense.createdAt || new Date().toLocaleDateString('es-CL'));
+      setExpenseDate(editExpense.date || new Date().toLocaleDateString('es-CL'));
     } else {
       // Reset if no edit params
       setTitle('');
@@ -40,6 +50,10 @@ export const AddExpenseScreen = ({ navigation, route }: any) => {
       setIsPaidToProvider(false);
       setSelectedCategory('other');
       setSelectedColor('#9C27B0');
+      setHasDateConfig(false);
+      setDueDate('');
+      setCreatedAt(new Date().toLocaleDateString('es-CL'));
+      setExpenseDate(new Date().toLocaleDateString('es-CL'));
     }
   }, [editExpense]);
 
@@ -73,6 +87,31 @@ export const AddExpenseScreen = ({ navigation, route }: any) => {
     }
 
 
+    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+    
+    let finalExpenseDate = new Date().toLocaleDateString('es-CL');
+    let finalDueDate: string | undefined = undefined;
+
+    if (hasDateConfig) {
+      if (!expenseDate) {
+        Alert.alert('Error', 'Ingresa la fecha de la transacción');
+        return;
+      }
+      if (!dateRegex.test(expenseDate)) {
+        Alert.alert('Error', 'La fecha de transacción debe tener el formato DD/MM/AAAA (ej. 12/06/2026)');
+        return;
+      }
+      finalExpenseDate = expenseDate;
+
+      if (dueDate) {
+        if (!dateRegex.test(dueDate)) {
+          Alert.alert('Error', 'La fecha límite debe tener el formato DD/MM/AAAA (ej. 25/06/2026)');
+          return;
+        }
+        finalDueDate = dueDate;
+      }
+    }
+
     const amountNum = parseFloat(amount);
     
     // Convert paidAmounts string state to Payment objects
@@ -82,20 +121,22 @@ export const AddExpenseScreen = ({ navigation, route }: any) => {
         id: `init-${Date.now()}-${roomieId}`,
         from: roomieId,
         amount: parseFloat(val),
-        date: new Date().toLocaleDateString('es-CL'),
+        date: finalExpenseDate,
       }));
 
     const newExpense: Expense = {
       id: editExpense?.id || Date.now().toString(),
       title,
       amount: amountNum,
-      date: editExpense?.date || new Date().toLocaleDateString('es-CL'),
+      date: finalExpenseDate,
       paidBy: paidBy || (roomies.length > 0 ? roomies[0].id : ''), // Fallback
       isPaidToProvider,
       payments: editExpense ? editExpense.payments : initialPayments,
       splitMode,
       category: selectedCategory,
       color: selectedColor,
+      createdAt: createdAt || new Date().toLocaleDateString('es-CL'),
+      dueDate: finalDueDate,
     };
 
     if (!editExpense) {
@@ -193,6 +234,8 @@ export const AddExpenseScreen = ({ navigation, route }: any) => {
             const isPaying = paidAmounts[roomie.id] !== undefined;
             const amountNum = parseFloat(amount) || 0;
             const share = roomies.length > 0 ? amountNum / roomies.length : 0;
+            const paid = parseFloat(paidAmounts[roomie.id] || '0');
+            const debt = share - paid;
             const willExceed = roomie.currentCredit < share;
 
             return (
@@ -240,9 +283,11 @@ export const AddExpenseScreen = ({ navigation, route }: any) => {
                       />
                     </View>
                     <View style={styles.debtInfo}>
-                      <Text style={[styles.debtLabel, { color: colors.textSecondary }]}>DEBE:</Text>
-                      <Text style={[styles.debtValue, { color: debt > 0 ? colors.secondary : '#4CAF50' }]}>
-                        ${Math.abs(debt).toLocaleString('es-CL')}
+                      <Text style={[styles.debtLabel, { color: colors.textSecondary }]}>
+                        {debt > 0 ? 'DEBE:' : debt < 0 ? 'LE DEBEN:' : 'AL DÍA'}
+                      </Text>
+                      <Text style={[styles.debtValue, { color: debt > 0 ? colors.secondary : debt < 0 ? '#4CAF50' : colors.textSecondary }]}>
+                        {debt === 0 ? '' : `$${Math.abs(debt).toLocaleString('es-CL')}`}
                       </Text>
                     </View>
                   </View>
@@ -270,6 +315,14 @@ export const AddExpenseScreen = ({ navigation, route }: any) => {
                 const share = roomies.length > 0 ? amountNum / roomies.length : 0;
                 const paid = parseFloat(paidAmounts[r.id] || '0');
                 const remaining = share - paid;
+                
+                let detailText = 'PAGADO';
+                if (remaining > 0) {
+                  detailText = `DEBE $${remaining.toLocaleString('es-CL')}`;
+                } else if (remaining < 0) {
+                  detailText = `LE DEBEN $${Math.abs(remaining).toLocaleString('es-CL')}`;
+                }
+
                 return (
                   <View key={r.id} style={styles.breakdownRow}>
                     <View style={styles.breakdownNameGroup}>
@@ -277,7 +330,7 @@ export const AddExpenseScreen = ({ navigation, route }: any) => {
                       <Text style={styles.breakdownName}>{r.name.toUpperCase()}</Text>
                     </View>
                     <Text style={styles.breakdownValue}>
-                      ${paid.toLocaleString('es-CL')} <Text style={{ opacity: 0.5 }}>•</Text> {remaining > 0 ? `DEBE $${remaining.toLocaleString('es-CL')}` : 'PAGADO'}
+                      ${paid.toLocaleString('es-CL')} <Text style={{ opacity: 0.5 }}>•</Text> {detailText}
                     </Text>
                   </View>
                 );
@@ -304,6 +357,42 @@ export const AddExpenseScreen = ({ navigation, route }: any) => {
           </View>
         </View>
 
+        {/* DATE CONFIGURATION CARD (EMISSION & DUE DATES) */}
+        <View style={[styles.toggleCard, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 10 }]}>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.toggleTitle, { color: colors.text }]}>¿ESTABLECER FECHA DE EMISIÓN Y FECHA LÍMITE?</Text>
+              <Text style={[styles.toggleDesc, { color: hasDateConfig ? colors.accent : colors.textSecondary }]}>
+                {hasDateConfig ? 'Fechas personalizadas' : 'Fecha de emisión hoy, sin fecha límite'}
+              </Text>
+            </View>
+            <Switch value={hasDateConfig} onValueChange={setHasDateConfig} trackColor={{ false: '#333', true: colors.accent }} />
+          </View>
+          
+          {hasDateConfig && (
+            <View style={{ marginTop: 15, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.1)', paddingTop: 15, gap: 15 }}>
+              <View>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>FECHA DE EMISIÓN (DD/MM/AAAA)</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                  placeholder="ej. 12/06/2026"
+                  value={expenseDate}
+                  onChangeText={setExpenseDate}
+                />
+              </View>
+
+              <View>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>FECHA LÍMITE DE PAGO (DD/MM/AAAA) [OPCIONAL]</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                  placeholder="ej. 25/06/2026"
+                  value={dueDate}
+                  onChangeText={setDueDate}
+                />
+              </View>
+            </View>
+          )}
+        </View>
 
         <BrutalButton 
           title={editExpense ? "GUARDAR CAMBIOS" : "CREAR GASTO"} 

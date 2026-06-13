@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, SafeAreaView, RefreshControl, Animated, PanResponder, Alert, TouchableOpacity, Modal } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, SafeAreaView, RefreshControl, Animated, PanResponder, Alert, TouchableOpacity, Modal, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../styles/ThemeContext';
 import { getExpenses, getRoomies, deleteExpense, Expense, Roomie, CATEGORIES } from '../services/storageService';
@@ -7,8 +7,10 @@ import { generateReport } from '../services/pdfService';
 import { BrutalPressable } from '../components/BrutalPressable';
 import { BrutalButton } from '../components/BrutalButton';
 
+const logo6 = require('../../assets/Logo/1x/Recurso 6.png');
+
 export const DashboardScreen = ({ navigation }: any) => {
-  const { colors, spacing, theme } = useTheme();
+  const { colors, spacing, theme, toggleTheme } = useTheme();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [roomies, setRoomies] = useState<Roomie[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,22 +38,45 @@ export const DashboardScreen = ({ navigation }: any) => {
     return unsubscribe;
   }, [navigation]);
 
-  // Filter expenses by selected month
-  const filteredExpenses = expenses.filter(exp => {
+  // Helper to check if an expense belongs to the selected month and year
+  const isSelectedMonth = (exp: Expense) => {
     if (!exp.date) return false;
-    // Support both / and - as separators
     const parts = exp.date.split(/[/-]/).map(Number);
     if (parts.length < 3) return false;
-    
-    const [day, month, year] = parts;
+    const [, month, year] = parts;
     return (month - 1) === currentDate.getMonth() && year === currentDate.getFullYear();
-  });
+  };
+
+  // Helper to check if an expense is in a past month/year
+  const isPastMonth = (exp: Expense) => {
+    if (!exp.date) return false;
+    const parts = exp.date.split(/[/-]/).map(Number);
+    if (parts.length < 3) return false;
+    const [, month, year] = parts;
+    const expDate = new Date(year, month - 1, 1);
+    const selectedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    return expDate < selectedDate;
+  };
+
+  // Filter expenses by selected month
+  const filteredExpenses = expenses.filter(isSelectedMonth);
+
+  // Get unpaid provider expenses from previous months to carry over
+  const carryOverExpenses = expenses.filter(exp => isPastMonth(exp) && !exp.isPaidToProvider);
+
+  // Combined list for recent activity display: current month + past unpaid expenses
+  const displayedExpenses = [...carryOverExpenses, ...filteredExpenses];
 
   // SMART CALCULATION: Total house debt (Total Amount - Abonos already made)
-  const totalExternalDebt = filteredExpenses.reduce((acc, exp) => {
+  // Now includes current month's unpaid provider debts AND past unpaid provider debts
+  const totalExternalDebt = expenses.reduce((acc, exp) => {
+    // Only sum if it's not paid to provider, and either belongs to the selected month or is a carryover from the past
     if (exp.isPaidToProvider) return acc;
-    const paidSoFar = exp.payments.reduce((sum, p) => sum + p.amount, 0);
-    return acc + (exp.amount - paidSoFar);
+    if (isSelectedMonth(exp) || isPastMonth(exp)) {
+      const paidSoFar = exp.payments.reduce((sum, p) => sum + p.amount, 0);
+      return acc + (exp.amount - paidSoFar);
+    }
+    return acc;
   }, 0);
 
   const totalInternalDebt = roomies.reduce((acc, r) => {
@@ -109,14 +134,29 @@ export const DashboardScreen = ({ navigation }: any) => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}
       >
         <View style={styles.header}>
-          <Text style={[styles.title, { color: theme === 'day' ? '#000' : colors.primary }]}>RUUMI</Text>
-          <BrutalPressable 
-            onPress={() => navigation.navigate('PERFIL')}
-            style={styles.avatarWrapper}
-            contentStyle={[styles.avatar, { backgroundColor: colors.accent, borderColor: colors.border }]}
-          >
-            <Text style={styles.avatarText}>JD</Text>
-          </BrutalPressable>
+          <Image 
+            source={logo6} 
+            style={styles.logo} 
+            resizeMode="contain" 
+          />
+          <View style={styles.headerActions}>
+            <BrutalPressable 
+              onPress={toggleTheme}
+              style={styles.headerActionWrapper}
+              contentStyle={[styles.headerActionBtn, { backgroundColor: theme === 'day' ? '#FFF' : colors.card, borderColor: colors.border }]}
+            >
+              <Ionicons name={theme === 'day' ? "moon" : "sunny"} size={20} color={colors.text} />
+            </BrutalPressable>
+            
+            <BrutalPressable 
+              onPress={() => Alert.alert('Notificaciones', 'No tienes notificaciones nuevas en tu Ruumi.')}
+              style={styles.headerActionWrapper}
+              contentStyle={[styles.headerActionBtn, { backgroundColor: colors.accent, borderColor: colors.border }]}
+            >
+              <Ionicons name="notifications" size={20} color="#000" />
+              <View style={[styles.notificationDot, { borderColor: colors.border }]} />
+            </BrutalPressable>
+          </View>
         </View>
 
         <View style={[styles.mainCard, { backgroundColor: cardBg, borderColor: colors.border }]}>
@@ -194,6 +234,92 @@ export const DashboardScreen = ({ navigation }: any) => {
           </View>
         </View>
 
+        {/* UPCOMING DUE DATES CALENDAR WIDGET (Option B) */}
+        {(() => {
+          // Find all unpaid provider expenses with due dates
+          const dueSoonExpenses = expenses
+            .filter(exp => !exp.isPaidToProvider && exp.dueDate)
+            .map(exp => {
+              const parts = exp.dueDate!.split(/[/-]/).map(Number);
+              const dueDateObj = new Date(parts[2], parts[1] - 1, parts[0]);
+              const todayObj = new Date();
+              todayObj.setHours(0, 0, 0, 0);
+              dueDateObj.setHours(0, 0, 0, 0);
+
+              const diffTime = dueDateObj.getTime() - todayObj.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              return { exp, diffDays };
+            })
+            .sort((a, b) => a.diffDays - b.diffDays);
+
+          if (dueSoonExpenses.length === 0) return null;
+
+          return (
+            <View style={{ marginBottom: 30 }}>
+              <View style={styles.liquidityHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>📅 VENCIMIENTOS DE CUENTAS</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>CALENDARIO DE DÍAS RESTANTES</Text>
+              </View>
+              
+              <View style={{ gap: 12 }}>
+                {dueSoonExpenses.map(({ exp, diffDays }) => {
+                  let alertColor = colors.accent; // default yellow
+                  let statusText = `Quedan ${diffDays} días`;
+                  
+                  if (diffDays < 0) {
+                    alertColor = colors.secondary; // pink/red warning
+                    statusText = `Venció hace ${Math.abs(diffDays)} días`;
+                  } else if (diffDays === 0) {
+                    alertColor = '#FF8000'; // orange
+                    statusText = '¡Vence hoy!';
+                  } else if (diffDays === 1) {
+                    statusText = 'Vence mañana';
+                  }
+
+                  return (
+                    <TouchableOpacity 
+                      key={exp.id}
+                      onPress={() => navigation.navigate('ExpenseDetail', { expenseId: exp.id })}
+                      style={[
+                        styles.listItem, 
+                        { 
+                          backgroundColor: colors.card, 
+                          borderColor: colors.border,
+                          borderLeftWidth: 10,
+                          borderLeftColor: alertColor,
+                          flexDirection: 'row',
+                          padding: 15,
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }
+                      ]}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.listTitle, { color: colors.text, fontSize: 14 }]}>
+                          {exp.title.toUpperCase()}
+                        </Text>
+                        <Text style={{ fontSize: 10, color: colors.textSecondary, fontWeight: '700', marginTop: 4 }}>
+                          Límite: {exp.dueDate}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>
+                          ${exp.amount.toLocaleString('es-CL')}
+                        </Text>
+                        <View style={[styles.statusBadge, { backgroundColor: alertColor, marginTop: 4, borderRadius: 4 }]}>
+                          <Text style={[styles.statusText, { fontSize: 9, fontWeight: '900' }]}>
+                            {statusText.toUpperCase()}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        })()}
+
         <View style={styles.liquidityHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>MONITOR DE LIQUIDEZ</Text>
           <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>HISTÓRICO ACUMULADO</Text>
@@ -248,7 +374,7 @@ export const DashboardScreen = ({ navigation }: any) => {
         <Text style={[styles.sectionTitlePink, { color: colors.secondary }]}>ACTIVIDAD RECIENTE</Text>
         
         <View style={styles.listContainer}>
-          {filteredExpenses.map((expense) => (
+          {displayedExpenses.map((expense) => (
             <SwipeableExpenseItem 
               key={expense.id}
               expense={expense}
@@ -308,9 +434,11 @@ const styles = StyleSheet.create({
   scrollContent: { paddingTop: 40 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   title: { fontSize: 36, fontWeight: '900' },
-  avatarWrapper: { width: 44, height: 44 },
-  avatar: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', borderWidth: 2 },
-  avatarText: { color: '#000', fontWeight: '900', fontSize: 16 },
+  logo: { width: 140, height: 44 },
+  headerActions: { flexDirection: 'row', gap: 10 },
+  headerActionWrapper: { width: 44, height: 44 },
+  headerActionBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', borderWidth: 2 },
+  notificationDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF007A', borderWidth: 1 },
   mainCard: { borderWidth: 3, padding: 20, marginBottom: 30 },
   cardSmallTitle: { fontWeight: '800', fontSize: 14 },
   cardAmount: { fontSize: 42, fontWeight: '900', marginVertical: 5 },

@@ -1,11 +1,11 @@
 import React, { useRef } from 'react';
-import { Animated, Pressable, StyleSheet, View, ViewStyle } from 'react-native';
+import { Animated, Pressable, StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 
 interface BrutalPressableProps {
   children: React.ReactNode;
   onPress: () => void;
-  style?: ViewStyle;
-  contentStyle?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
+  contentStyle?: StyleProp<ViewStyle>;
 }
 
 export const BrutalPressable: React.FC<BrutalPressableProps> = ({ 
@@ -51,14 +51,14 @@ export const BrutalPressable: React.FC<BrutalPressableProps> = ({
       hitSlop={20}
       style={({ pressed }) => [
         styles.container,
-        style
+        style as any // Casting because of nested arrays in styles
       ]}
     >
       <View style={styles.shadow} />
       <Animated.View style={[
         styles.front, 
-        contentStyle,
-        style?.flex ? { flex: style.flex } : null,
+        contentStyle as any,
+        (style as any)?.flex ? { flex: (style as any).flex } : null,
         { transform: [{ translateX }, { translateY }] }
       ]}>
         {children}

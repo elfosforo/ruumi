@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, ViewStyle, ReactNode } from 'react-native';
+import React, { ReactNode } from 'react';
+import { View, StyleSheet, ViewStyle } from 'react-native';
 import { theme } from '../styles/theme';
 
 interface BrutalCardProps {
